@@ -1,0 +1,321 @@
+<!--
+Copyright 2017 IBM Corp.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+-->
+<aura:component controller="WeatherService">
+	<!-- Add here: require of your maps code and pointer to code to run after external map script is loaded (like line below) -->
+	<!-- ltng:require scripts="{!$Resource.maps_js}" afterScriptsLoaded="{!c.afterScriptsLoaded}" /-->
+	
+	
+	<aura:attribute name="units" type="String" />
+    <aura:attribute name="recordId" type="Id" />
+    <aura:attribute name="sObjectName" type="String" />
+    <aura:attribute name="addressType" type="String" />
+
+	<aura:attribute name="currentConditions" access="private" type="WeatherCondition" />
+	<aura:attribute name="forecast" access="private" type="WeatherForecast" />
+	<aura:attribute name="alerts" access="private" type="Alert[]" />
+    <aura:attribute name="actions" access="private" type="UserWeatherActions" />
+
+    <aura:attribute name="weatherLoaded" access="private" type="Boolean" default="false" />
+    <aura:attribute name="weatherLoading" access="private" type="Boolean" default="false" />
+    <aura:attribute name="errorMessage" access="private" type="String" default="" />
+    <aura:attribute name="selTabId" access="private" type="String" default="current" />
+    <aura:attribute name="currentAlert" access="private" type="AlertDetails" />
+
+    <!--Change this mockdata attribute to false to disable the sample data response and activate the API calls to weather.com-->
+    <aura:attribute name="useMockup" access="private" type="Boolean" default="true" /> 
+
+	<!-- You may use this to save the pointer to the map in the window-->
+    <aura:attribute name="mapReference" access="private" type="Object" />
+    <aura:attribute name="mapLoaded" access="private" type="Boolean" default="false" />
+
+	<aura:attribute name="domLoaded" access="private" type="Boolean" default="false" />
+	
+	<aura:attribute name="scriptsLoaded" access="private" type="Boolean" default="false" /> 
+
+	<aura:attribute name="weatherLocation" access="private" type="WeatherLocation" /> 
+    <aura:attribute name="weatherURL" access="private" type="String" />
+    <aura:attribute name="severeAlertImage" access="private" type="String"/>   
+    <aura:attribute name="hasPurchasedKey" access="private" type="Boolean" default="true" />
+
+    <!-- events -->
+    <aura:handler name="init" value="{!this}" action="{!c.doInit}"/>
+	<aura:dependency resource="markup://force:editRecord" type="EVENT" />
+    <aura:handler event="force:refreshView" action="{!c.reloadWeather}" />
+    
+
+    <aura:if isTrue="{!or(v.useMockup, and(v.alerts.length != 0, v.errorMessage == ''))}">
+        <lightning:tabset onselect="{!c.handleTabChange}" selectedTabId="{!v.selTabId}">
+            <lightning:tab id="current" label="{!$Label.c.tab_current}" />
+            <lightning:tab id="alert">
+                <aura:set attribute="label">
+                    <ui:outputText value="{!$Label.c.tab_alerts}" /> &nbsp;
+                    <span class="slds-avatar slds-avatar--small">
+                        <img src="{!$Resource.alert_icons + v.severeAlertImage}" />
+                    </span> 
+                </aura:set>
+            </lightning:tab>        
+        </lightning:tabset>
+    </aura:if>
+
+    <div class="slds-card slds-is-relative">
+        <aura:if isTrue="{!v.errorMessage != ''}">            
+            <div class="errorMessage">
+                <h3 class="slds-section__title">{!$Label.c.app_name}</h3>
+                <ui:message severity="error">
+                    <ui:outputText value="{!v.errorMessage}" />
+		    <aura:if isTrue="{!v.hasPurchasedKey == false}">
+                             <a class="slds-m-left--xx-small" target="_blank" href="{!$Label.c.unmanaged_buy_api_url}">
+                                 <ui:outputText value="{!$Label.c.unmanaged_banner_url}" />
+                             </a>
+                    </aura:if>
+                </ui:message>
+             </div>    
+        </aura:if>
+        <aura:if isTrue="{!v.weatherLoading || !v.domLoaded || !v.scriptsLoaded}">
+            <div class="slds-form--compound">
+                <div class="slds-spinner_container" aura:id="uploadSpinner">
+                    <div class="slds-spinner slds-spinner--medium" aria-hidden="false" role="alert">
+                        <div class="slds-spinner__dot-a"></div>
+                        <div class="slds-spinner__dot-b"></div>
+                    </div>
+                </div>
+            </div>
+        </aura:if>
+		<aura:if aura:id="mockup_map" isTrue="{!v.useMockup}">
+			<div class="slds-size--1-of-1 slds-mock-image-container">
+            	<img style="height: 100%; margin: auto" src="{!$Resource.preview}"></img>
+            </div>
+            <div class="slds-size--1-of-1 slds-banner-container">
+            	<p class="banner">{!$Label.c.unmanaged_banner_message}<a target="_blank" href="{!$Label.c.unmanaged_buy_api_url}">{!$Label.c.unmanaged_banner_url}</a>.</p>
+            	
+	        </div>
+        </aura:if>
+		<div class="slds-grid slds-wrap slds-grid">
+            <div class="slds-size--1-of-1">
+                <div aura:id="map_container">
+                  <div style="height: 300px" aura:id="map"></div>
+		  			<div aura:id="map_controls" class="map_controls slds-button-group" role="group">
+                    <button class="slds-button slds-button--icon-border" data-action="in" onclick="{!c.mapZoom}">
+                      <lightning:icon iconName="utility:add" size="x-small" alternativeText="Zoom In"/>
+                    </button>
+                    <button class="slds-button slds-button--icon-border" data-action="out" onclick="{!c.mapZoom}">
+                      <lightning:icon iconName="utility:dash" size="x-small" alternativeText="Zoom Out"/>
+                    </button>
+                  </div>
+		  			<div aura:id="map_timeout_container" class="map_timeout_container">
+                    <div role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+                      <div class="slds-modal__container">
+                        <div class="slds-modal__header">
+                          <h2 class="slds-text-heading--medium">{!$Label.c.map_timeout}</h2>
+                        </div>
+                        <div class="slds-modal__content slds-p-around--medium">
+                          <p>{!$Label.c.map_timeout_action}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="slds-backdrop slds-backdrop--open" style="position:absolute;height:300px;"></div>
+                  </div>
+                </div>
+            </div>
+            <div class="slds-size--1-of-1 slds-p-horizontal--x-small slds-border--bottom">
+	            <aura:if isTrue="{!v.weatherLoaded}">
+                    <div class="slds-grid slds-wrap">
+                        <div class="slds-size--1-of-2">
+                            <div>
+			        <aura:if isTrue="{!v.weatherLocation.city != null}"> 
+ 			        				<ui:outputText value="{!v.weatherLocation.city}" />
+                                    <aura:set attribute="else">
+                                        <ui:outputText value="{!v.weatherLocation.postalCode}" />
+                                    </aura:set>
+                                </aura:if>
+				<aura:if isTrue="{!v.weatherLocation.countryCode=='US'}">
+                                    ,&nbsp;<ui:outputText value="{!v.weatherLocation.state}" />
+                                    <aura:set attribute="else">
+                                        ,&nbsp;<ui:outputText value="{!v.weatherLocation.adminDistrict}" />
+                                    </aura:set>
+                                </aura:if>	
+			    </div>
+                            <div><ui:outputDate value="{!v.currentConditions.asOf}" format="EEEE, M/d hh:mm a" /></div>
+                        </div>
+                        <div class="slds-size--1-of-2">
+                            <div class="slds-text-align--right slds-p-vertical--small"><a target="_blank" href="{!v.weatherURL}"><ui:outputText value="{!$Label.c.lbl_full_forecast}" />&nbsp;&raquo;</a></div>
+                        </div>
+                    </div>
+            	</aura:if>
+            </div>
+        </div>
+		
+        <div style="display: none;" aura:id="tab_current" class="slds-grid slds-wrap slds-grid"> 
+            <div class="slds-size--3-of-8">
+                <div  class="slds-text-align--center slds-p-vertical--small">
+                    <img style="width: 30%" src="{!$Resource.weather_icons + '/icons/' + v.currentConditions.iconCode + '.svg'}" />
+                    <div>
+                        <p><ui:outputText value="{!v.currentConditions.temp}" />
+                        	<ui:outputText value="{!$Label.c.degree_symbol}" /></p>
+                        <p><ui:outputText value="{!v.currentConditions.phrase}" /></p>
+                        <p class = "slds-text-body--small">
+                            <ui:outputText value="{!$Label.c.temp_feels_like}" />&nbsp;
+                            <ui:outputText value="{!v.currentConditions.feelsLikeTemp}"/>
+                            <ui:outputText value="{!$Label.c.degree_symbol}" />
+                        </p>
+                    </div>                    
+                </div>
+            </div>
+            
+            <div class="slds-size--5-of-8">            
+                <table class="slds-table slds-table--cell-buffer">
+                    <tbody>
+                       <tr class = "slds-border--bottom">
+                            <td class = "slds-text-align--center">
+                                <div>
+                                    <ui:outputText value="{!$Label.c.high_temp + ' ' + v.forecast.maxTemp}" />
+                                    <aura:if isTrue="{!v.forecast.maxTemp != $Label.c.not_applicable}">
+                                        <ui:outputText value="{!$Label.c.degree_symbol + if(v.units == $Label.c.english_unit,'F','C')}" />&nbsp;
+                                    </aura:if>
+                                    &nbsp;|&nbsp;
+                                    <ui:outputText value="{!$Label.c.low_temp + ' ' + v.forecast.minTemp}" />
+                                    <aura:if isTrue="{!v.forecast.minTemp != $Label.c.not_applicable}">
+                                        <ui:outputText value="{!$Label.c.degree_symbol + if(v.units == $Label.c.english_unit,'F','C')}" />&nbsp;
+                                    </aura:if>                                 	
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class = "slds-border--bottom">
+                            <td class = "slds-text-align--center">
+                                <div>
+                                    <ui:outputText value="{!v.forecast.chanceOfPrecip}" />
+                                     <aura:if isTrue="{!v.forecast.chanceOfPrecip != $Label.c.not_applicable}">
+                                         <ui:outputText value="{!$Label.c.percentage_symbol + ' ' + $Label.c.chance_of_precip + ' ' + v.forecast.precipType}" />
+                                    </aura:if>
+                                </div>
+                            </td>
+                        </tr>
+						<tr class = "slds-border--bottom">
+                            <td class = "slds-text-align--center">
+                                <div>
+                                    <ui:outputText value="{!v.forecast.windSpeed}" />
+                                    <aura:if isTrue="{!v.forecast.windSpeed != $Label.c.not_applicable}">
+										<ui:outputText value="{!if(v.units == 'Metric',$Label.c.units_speed_metric,$Label.c.units_speed_english)}" />
+                                    </aura:if>
+                                    <ui:outputText class="slds-m-left--xx-small" value="{!$Label.c.wind_speed + ' ' + v.forecast.windDirectionCardinal}" /> 
+                                </div>
+                            </td>
+                        </tr>  
+                        <tr>
+                            <td class = "slds-text-align--center">
+                                 <aura:if isTrue="{!v.alerts.length == 0}">
+                                    <ui:outputText value="{!$Label.c.msg_no_alerts}" />
+                                    <aura:set attribute="else">
+                                        <span class="slds-avatar slds-avatar--small">
+                                            <img src="{!$Resource.alert_icons + v.severeAlertImage}" />
+                                        </span>             
+                                        &nbsp;
+                                        <a onclick="{!c.gotoAlertTab}"><ui:outputNumber value="{!v.alerts.length}" format="0" />&nbsp;
+                                            <ui:outputText value="{!$Label.c.lbl_active_alerts}" /></a>
+                                    </aura:set>
+                                 </aura:if>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="display: none;" aura:id="tab_alerts" class="slds-grid slds-wrap slds-grid">
+            <div aura:id="alerts_list" class = "slds-m-vertical--small">
+            <aura:iteration items="{!v.alerts}" var="alert">
+                <div class="slds-p-horizontal--x-small">
+                    <aura:if isTrue="{!alert.significance == 'W'}">  
+                        <span class="slds-avatar slds-avatar--small">
+                        	<img src="{!$Resource.alert_icons + '/alert-warning.svg'}" />
+                        </span>
+                    </aura:if>
+                    <aura:if isTrue="{!alert.significance == 'A'}">  
+                        <span class="slds-avatar slds-avatar--small">
+                        	<img src="{!$Resource.alert_icons + '/alert-watch.svg'}" />
+                        </span>
+                    </aura:if>
+                    <aura:if isTrue="{!alert.significance == 'Y'}"> 
+                        <span class="slds-avatar slds-avatar--small">
+                        	<img src="{!$Resource.alert_icons + '/alert-advisory.svg'}" />
+                        </span>
+                    </aura:if>
+                    <aura:if isTrue="{!alert.significance == 'S'}">    
+                        <span class="slds-avatar slds-avatar--small">
+                        	<img src="{!$Resource.alert_icons + '/alert-statement.svg'}" />
+                        </span>
+                    </aura:if>
+                    <!--<img class="{!'alert_' + alert.significance}" src="{!$Resource.alert_icons + '/alert_' + alert.significance + '.svg'}" />-->
+                    &nbsp;<a data-key="{!alert.detailKey}" onclick="{!c.loadAlertDetail}"><ui:outputText value="{!alert.headline}" /></a>
+                </div>
+            </aura:iteration>
+
+            <aura:if isTrue="{!v.alerts.length == 0}">
+                <ui:outputText value="{!$Label.c.msg_no_alerts}" />
+            </aura:if>
+            </div>
+            <div style="display:none;" aura:id="alert_detail" class = "slds-m-vertical--small">
+                <aura:if isTrue="{!v.useMockup &amp;&amp; v.currentAlert != null &amp;&amp; v.currentAlert.details == null}">
+                    <div class="slds-form--compound">
+                        <div class="slds-spinner_container" aura:id="uploadSpinner">
+                            <div class="slds-spinner slds-spinner--medium" aria-hidden="false" role="alert">
+                                <div class="slds-spinner__dot-a"></div>
+                                <div class="slds-spinner__dot-b"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <aura:set attribute="else">                        
+                        <div class="slds-p-horizontal--x-small">
+                            <a onclick="{!c.closeAlertDetail}">{!$Label.c.btn_back_to_alerts}</a>
+                            <p><ui:outputTextArea value="{!v.currentAlert.details.headline}" /></p>
+                            <p><ui:outputTextArea value="{!v.currentAlert.details.overview}" /></p>
+                            <p><ui:outputTextArea value="{!v.currentAlert.details.description}" /></p>
+                            <p><ui:outputTextArea value="{!v.currentAlert.details.instruction}" /></p>
+                            <p><ui:outputTextArea value="{!v.currentAlert.details.areaName}" /></p>                            
+                        </div>
+                    </aura:set>
+                </aura:if>
+            </div>
+        </div>
+        <div class="slds-grid slds-wrap slds-grid slds-border--top" id = "footer_logo">            
+             <div class="slds-size--2-of-8 slds-m-vertical--xxx-small">
+                  <img src="{!$Resource.WeatherCompanyLogo}"/>
+             </div>
+            <aura:if isTrue="{!v.weatherLoaded}">
+             <div class="slds-text-align--right slds-size--6-of-8 slds-m-vertical--xxx-small">
+                <aura:if isTrue="{!v.actions.hasAction}">
+                <lightning:buttonMenu menuAlignment="right" iconName="utility:magicwand" alternativeText="New" onselect="{!c.handleAction}">
+                    <aura:if isTrue="{!v.actions.allowNewTask}">
+						<lightning:menuItem iconName="action:new_task" label="{!$Label.c.lbl_action_new_task}" value="task" />
+                    </aura:if>
+                    <aura:if isTrue="{!v.actions.allowCallLog}">
+	                    <lightning:menuItem iconName="action:log_a_call" label="{!$Label.c.lbl_action_log_call}" value="call" />
+                    </aura:if>
+                    <aura:if isTrue="{!v.actions.allowNewEvent}">
+	                    <lightning:menuItem iconName="action:new_event" label="{!$Label.c.lbl_action_new_event}" value="event"/>
+                    </aura:if>
+                    <aura:if isTrue="{!v.actions.allowNewCase}">
+                    	<lightning:menuItem iconName="action:new_case" label="{!$Label.c.lbl_action_new_case}" value="case"/>
+                    </aura:if>
+                    <aura:if isTrue="{!v.actions.allowNewOpportunity}">
+                    	<lightning:menuItem iconName="action:new_opportunity" label="{!$Label.c.lbl_action_new_opportunity}" value="opportunity"/>
+                    </aura:if>               
+                    <aura:if isTrue="{!and(!v.useMockup,and(v.units == 'English', v.selTabId=='current')) }">                          
+                        <lightning:menuItem class="slds-border--top" label="{!$Label.c.lbl_use_metric_unit}" value="Metric"/>                                                	  
+                   	</aura:if>                                                        
+                    <aura:if isTrue="{!and(!v.useMockup,and(v.units == 'Metric', v.selTabId=='current')) }">                                               
+                        <lightning:menuItem class="slds-border--top" label="{!$Label.c.lbl_use_english_unit}" value="English"/>                                                	                       
+                    </aura:if>                   
+                </lightning:buttonMenu>
+                </aura:if>
+              </div>
+             </aura:if>                                                    
+        </div>
+    </div>
+</aura:component>

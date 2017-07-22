@@ -1,0 +1,80 @@
+/*
+Copyright 2017 IBM Corp.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+*/
+
+.THIS .slds-tabs--default__content { display: none; }
+
+.THIS .config_setting_button_container {  position:absolute; right:10px; bottom:5px; }
+
+.THIS .alert_W { fill: #D6202B; } /* warning red */
+.THIS .alert_A { fill: #F58838; } /* watch orange */
+.THIS .alert_Y { fill: #FDB831; } /* advisory yellow */
+.THIS .alert_S { fill: #1957A6; } /* statement blue */
+
+
+.THIS #settings_tab {
+    position:absolute;
+    right:15px;    
+}
+
+.THIS .padding {
+    padding:5px;
+}
+
+.THIS #footer_logo {    
+    padding:5px;
+}
+
+.THIS .map_controls {
+    position:absolute;
+    top:10px;
+    right:10px;
+    z-index:1002;
+    box-shadow:1px 1px 17px -1px rgba(20, 20, 20, 0.2);
+}
+
+.THIS .map_controls .slds-button {
+	background: #fff;
+}
+
+.THIS .map_controls .slds-button:hover {
+	background: #eee;
+}
+
+.THIS .map_controls .slds-button:focus,
+.THIS .map_controls .slds-button:active {
+	outline: 0;
+	box-shadow: none;
+}
+
+.THIS .map_timeout_container {
+    display:none;
+}
+
+.THIS .slds-modal__container {
+    min-width:20em;
+    margin-top:-300px;
+}
+
+.THIS .slds-banner-container {
+	text-align: center;
+    background-color: #687C9D;
+    padding: 6px;
+    font-size: 12px;
+    color: rgb(244, 246, 249);
+}
+.THIS .slds-banner-container a{
+	color: rgb(244, 246, 249);
+    margin: 0 0 0 4px;
+    text-decoration: underline;
+}
+
+.THIS .slds-mock-image-container {
+	height: 300px;
+	display: flex;
+}

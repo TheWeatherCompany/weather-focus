@@ -1,0 +1,16 @@
+<!--
+Copyright 2017 IBM Corp.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+-->
+
+<design:component label="Weather Company Weather Focus">
+    <sfdc:objects >
+        <sfdc:object >Contact</sfdc:object>
+    </sfdc:objects>
+    <design:attribute name="addressType" label="Address Type" datasource="Mailing,Other" default="Mailing" />
+    <design:attribute name="units" label="Units" datasource="English,Metric" default="English" />
+</design:component>
