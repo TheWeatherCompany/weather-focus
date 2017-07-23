@@ -1,5 +1,4 @@
-# Weather Company Weather Focus 
-# Unmanaged Component Guide
+# Weather Company Weather Focus <br/> Unmanaged Component Guide
 
 This component allows you to visualize the weather affecting your customers and use it as a conversation-starter and/or sales tool. For example, if inclement weather is causing active alerts that might impact travel, you can better plan a time to call your contact at a logistics company who might be distracted by the current storms.
 
