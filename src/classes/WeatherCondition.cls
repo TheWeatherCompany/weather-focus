@@ -7,7 +7,7 @@ You may obtain a copy of the License at
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
-public class WeatherCondition {
+public with sharing class WeatherCondition {
     @AuraEnabled public String temp;
     @AuraEnabled public String phrase;
     @AuraEnabled public String iconCode;

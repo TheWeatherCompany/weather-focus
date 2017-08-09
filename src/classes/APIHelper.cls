@@ -7,7 +7,7 @@ You may obtain a copy of the License at
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
-public class APIHelper {
+public with sharing class APIHelper {
     static Map<String, API__mdt> apis = null;
 
     public static API__mdt getAPI(String key) {

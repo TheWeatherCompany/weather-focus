@@ -7,7 +7,7 @@ You may obtain a copy of the License at
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
-global class Alert implements Comparable {
+global with sharing class Alert implements Comparable {
 	@AuraEnabled public String key;
 	@AuraEnabled public String detailKey;
 	@AuraEnabled public String significance;

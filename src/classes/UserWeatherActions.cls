@@ -7,7 +7,7 @@ You may obtain a copy of the License at
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
-public class UserWeatherActions {
+public with sharing class UserWeatherActions {
     @AuraEnabled public Id accountId;
     @AuraEnabled public Boolean hasAction = false;
 

@@ -7,7 +7,7 @@ You may obtain a copy of the License at
 http://www.apache.org/licenses/LICENSE-2.0
 */
 
-public class LocationService {
+public with sharing class LocationService {
     private static final String ENDPOINT = 'https://api.weather.com';
 
 /*
