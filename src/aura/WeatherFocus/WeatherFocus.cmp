@@ -230,7 +230,7 @@ http://www.apache.org/licenses/LICENSE-2.0
         </div>
 
         <div style="display: none;" aura:id="tab_alerts" class="slds-grid slds-wrap slds-grid">
-            <div aura:id="alerts_list" class = "slds-m-vertical--small">
+            <div aura:id="alerts_list" style="max-height: 300px; overflow: auto;" class="slds-m-vertical--small">
             <aura:iteration items="{!v.alerts}" var="alert">
                 <div class="slds-p-horizontal--x-small">
                     <aura:if isTrue="{!alert.significance == 'W'}">  
