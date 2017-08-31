@@ -55,7 +55,7 @@ public with sharing class LocationService {
             if (String.isEmpty(postalCode)) {
 				body = '{"errors":[{"error":{"message":""}}]}';
             } else {
-            	body = '{"location":{"latitude":33.774,"longitude":-84.296,"city":"Decatur"}}';
+            	body = '{"location":{"latitude":33.774,"longitude":-84.296,"city":"Decatur","countryCode":"US"}}';
             }
         }
 
@@ -64,12 +64,11 @@ public with sharing class LocationService {
         if (errors != null && !errors.isEmpty()) {
             Map<String, Object> error = (Map<String, Object>)errors[0];
             error = (Map<String, Object>)error.get('error');
-
             throw new LocationException((String)error.get('message'));
         }        
             
         resp = (Map<String, Object>)resp.get('location');
-        if (resp == null) throw new LocationException(System.Label.err_unable_to_determine_location_by_postal_code);
+        if (resp == null || (resp.get('countryCode') != 'CA' && resp.get('countryCode') != 'US')) throw new LocationException(System.Label.err_unable_to_determine_location_by_postal_code);
         
         GeoLocation loc = new GeoLocation();        
         loc.latitude = (Decimal)resp.get('latitude');
@@ -110,28 +109,33 @@ public with sharing class LocationService {
         if (errors != null && !errors.isEmpty()) {
             Map<String, Object> error = (Map<String, Object>)errors[0];
             error = (Map<String, Object>)error.get('error');
-
             throw new LocationException((String)error.get('message'));
         }        		
-        
-        resp = (Map<String, Object>)resp.get('location');
-        if (resp == null) throw new LocationException(System.Label.err_unable_to_determine_location);        
 
-        GeoLocation loc = new GeoLocation();        
-        List<Object> lats = (List<Object>)resp.get('latitude');
-        List<Object> lons = (List<Object>)resp.get('longitude');
-        List<Object> cities = (List<Object>)resp.get('city');
-        List<Object> states = (List<Object>)resp.get('adminDistrictCode');   
-	List<Object> countryCodes = (List<Object>)resp.get('countryCode');
-        List<Object> adminDistricts = (List<Object>)resp.get('adminDistrict');
-        loc.latitude = (Decimal)lats[0];
-        loc.longitude = (Decimal)lons[0];
-		loc.city = (String)cities[0];
-        loc.state = (String)states[0];
-	loc.countryCode = (String)countryCodes[0];
-        loc.adminDistrict = (String)adminDistricts[0];
-     
-        return loc;
+        resp = (Map<String, Object>)resp.get('location');
+        if (resp != null) {
+		GeoLocation loc = new GeoLocation();        
+		List<Object> lats = (List<Object>)resp.get('latitude');
+		List<Object> lons = (List<Object>)resp.get('longitude');
+		List<Object> cities = (List<Object>)resp.get('city');
+		List<Object> states = (List<Object>)resp.get('adminDistrictCode');   
+		List<Object> countryCodes = (List<Object>)resp.get('countryCode');
+		List<Object> adminDistricts = (List<Object>)resp.get('adminDistrict');
+
+        	for (Integer i = 0; i < lats.size(); i++) {
+        		if (countryCodes[i] != 'CA' && countryCodes[i] != 'US') continue;
+
+		        loc.latitude = (Decimal)lats[i];
+		        loc.longitude = (Decimal)lons[i];
+			loc.city = (String)cities[i];
+		        loc.state = (String)states[i];
+			loc.countryCode = (String)countryCodes[i];
+		        loc.adminDistrict = (String)adminDistricts[i];
+
+			return loc;
+        	}
+        }
+        throw new LocationException(System.Label.err_unable_to_determine_location);
     }
 
     class LocationException extends Exception {}

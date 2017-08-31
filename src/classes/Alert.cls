@@ -16,6 +16,10 @@ global with sharing class Alert implements Comparable {
     @AuraEnabled public DateTime effectiveFrom;
     @AuraEnabled public DateTime effectiveTo;
     @AuraEnabled public DateTime issueDate;
+    @AuraEnabled public String description;
+    @AuraEnabled public Integer certaintyCode;
+    @AuraEnabled public List<Integer> responseTypeCode;
+    @AuraEnabled public Long effectiveFromLong;
     
     global Integer compareTo(Object compareTo) {
 		Alert compareToAlert = (Alert)compareTo;

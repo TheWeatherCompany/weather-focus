@@ -41,15 +41,19 @@ public with sharing class GeoLocation {
 		String postalCode = (String)obj.get(addressField + 'PostalCode');
         String country = (String)obj.get(addressField + 'Country');
         
-        if ((gl == null || !gl.isValid()) && (String.isNotEmpty(postalCode) && String.isNotEmpty(country))) {
-            
-            if (country.startsWithIgnoreCase('ca') || (postalCode.length() >= 2 && postalCode.substring(0, 1).isNumeric() != postalCode.substring(1, 2).isNumeric())) {
+        if ((gl == null || !gl.isValid()) && String.isNotEmpty(postalCode)) {
+            boolean postalValid = true;
+            if ((String.isEmpty(country) || (!String.isEmpty(country) && country.startsWithIgnoreCase('ca'))) && postalCode.length() >= 2 && postalCode.substring(0, 1).isNumeric() != postalCode.substring(1, 2).isNumeric()) {
                 postalCode = postalCode.toUpperCase();
             	country = 'CA';
-            } else {
+            } else if (String.isEmpty(country) || (country.startsWithIgnoreCase('u') && postalCode.length() >= 5 && postalCode.substring(0, 5).isNumeric())) {
 				country = 'US';
+            } else {
+                // skip it
+                postalValid = false;
             }
                 
+            if (postalValid) {
             if (country == 'US' && postalCode.length() > 5)
             	postalCode = postalCode.substring(0, 5);
 
@@ -61,6 +65,7 @@ public with sharing class GeoLocation {
             } catch(Exception ex) {
                 System.debug(ex);
             }
+        }
         }
         String address = '';
         address += (obj.get(addressField + 'Street')==null) ? '' : (String)obj.get(addressField + 'Street') + ' ';

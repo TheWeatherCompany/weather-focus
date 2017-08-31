@@ -222,7 +222,20 @@ public with sharing class WeatherService {
             al.issueDate = Util.parseJSONDateTime((String)resp.get('issue_dt_tm_local'));
             al.detailKey = (String)resp.get('detail_key');
             al.severityCd = resp.get('severity_cd') == null ? null : Integer.valueOf(resp.get('severity_cd'));
-            al.significance = (String)resp.get('significance');
+            al.significance = resp.get('significance') == null ? null : (String)resp.get('significance');
+            al.description = resp.get('event_desc') == null ? null : (String)resp.get('event_desc');
+            al.certaintyCode = resp.get('certainty_cd') == null ? null : Integer.valueOf(resp.get('certainty_cd'));            
+            al.effectiveFromLong = resp.get('effective_dt_tm_local') == null ? null : al.effectiveFrom.getTime();
+            
+            List<Object> responses = (List<Object>) resp.get('response_types'); 
+            al.responseTypeCode = new List<Integer>();
+            if(!responses.isEmpty()) {                
+                for(Integer i=0;i<responses.size();i++) {
+                    Map<String, Object> responseType = (Map<String, Object>) responses.get(i);                                       
+                    if(responseType.get('response_type_cd')!=null)
+                        al.responseTypeCode.add(Integer.valueOf(responseType.get('response_type_cd')));             
+                }
+            }
 
             if (!alertBySeverity.containsKey(al.significance)) alertBySeverity.put(al.significance, new List<Alert>());
             alertBySeverity.get(al.significance).add(al);
